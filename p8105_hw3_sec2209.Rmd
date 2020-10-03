@@ -7,6 +7,7 @@ output: github_document
 This is my third homework assignment for P8105.
 
 ```{r libraries}
+library(tidyverse)
 library(p8105.datasets)
 ```
 
@@ -38,10 +39,37 @@ There are `r ` aisles represented in the data. Most items that are ordered come 
 
 
 
-
-
-
-
  
 ## Problem 2
 
+In this code chunk, I load and tidy the accelerometer data. I use the `clean_names()` function from the `janitor` package to clean the variable names, create a weekday versus weekend variable, and encode data with reasonable variable classes. 
+
+
+```{r accel}
+accel = 
+  read_csv(
+    "./Data/accel_data.csv") %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    activity_1:activity_1440,
+    names_to = "activity_count",
+    values_to = "active",
+    names_prefix = "activity_"
+  ) %>%
+  mutate(weekend = ifelse(day_id %in% c(3, 4), "Weekend", "Weekday"))
+```
+
+The resulting data set contains `r nrow(accel)` rows and `r ncol(accel)` variables. This data set contains indicator variables for the week number (`week`) and day of the week (`day`), a variable `activity_count` that represents incremental one-minute measurement interval of the accelerometer, a variable that represents the accelerometer reading (`active`)  and the `weekend` indicator that defines whether it was a weekend or weekday.
+
+In the next code chunk, I aggregate the activity totals for each day and display the data in a table.
+
+
+```{r accel_day}
+accel %>%
+  group_by(week, day) %>%
+  summarize(
+    total_Active = sum(active)) %>% 
+  knitr::kable(digits = 1)
+```
+
+From this table, there appears to be a bit of a decline in activity on the weekends.
