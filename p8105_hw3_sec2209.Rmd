@@ -24,13 +24,13 @@ data("instacart")
 Next, I create a table that displays the three most popular items in each of the aisles of "baking ingredients", "dog food care", and "packaged vegetables fruits". The table displays the number of times each item was ordered.
 
 ```{r insta_t1}
-  instacart %>%
-    filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
-    group_by(aisle, product_name) %>%
-    summarize(orders = n()) %>%
-    arrange(aisle, desc(orders)) %>%
-    top_n(n = 3) %>%
-    knitr::kable()
+instacart %>%
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+  group_by(aisle, product_name) %>%
+  summarize(orders = n()) %>%
+  arrange(aisle, desc(orders)) %>%
+  top_n(n = 3) %>%
+  knitr::kable()
 ```
 
 In the final portion of problem 1, I create a table that shows the mean hour of the day at which Pink Lady apples and coffee ice cream are ordered on each day of the week.
@@ -106,9 +106,29 @@ ggplot(accel, aes(x = activity_count, y = active)) +
 
 ## Problem 3
 
-In this final problem, I explore the Instacart data. I create a plot of the number of items ordered in each aisle, limiting to aisles with more than 10,000 items ordered. 
+In this final problem, I explore and clean the NY NOAA data. First, I separate year, month, and day. I then change the units for temperature from tenths of degrees C to degrees C and precipitation from tenths of mm to mm.
 
 ```{r noaa}
 data("ny_noaa")
+
+ny_noaa %>%
+  separate(date, into = c("year", "month", "day"), sep = "-") %>%
+  mutate(month = as.integer(month),
+         day = as.integer(day),
+         year = as.integer(year),
+         prcp = prcp / 10,
+         tmax = as.integer(tmax) / 10,
+         tmin = as.integer(tmin) / 10
+         ) 
+```
+
+The National Oceanic and Atmospheric Association (NOAA) National Climatic Data Center data contain summary statistics from weather stations across the country. This subset of the NOAA data contain daily summary statistics on precipitation amount (`prcp`), snowfall amount (`snow`), snow depth (`snwd`), and minimum and maximum temperature (`tmax` and `tmin`) from the New York state weather stations from 1981-2010. 
+
+The resulting data set contains `r nrow(ny_noaa)` rows  and `r ncol(ny_noaa)` columns. There is substantial missing data, with `r ny_noaa %>% summarize(mean(is.na(tmax))) * 100 %>% round()`% of observations missing maximum temperature, `r ny_noaa %>% summarize(mean(is.na(tmin))) * 100 %>% round()`% of observations missing minimum temperature, `r ny_noaa %>% summarize(mean(is.na(snow))) * 100 %>% round()`% of observations missing snow amount, and `r ny_noaa %>% summarize(mean(is.na(snwd))) * 100 %>% round()`% of observations missing snow depth. Since it rarely snows in New York outside of winter months, the most common observed snowfall values is`r summarize(ny_noaa, mode(snwd))` orders,
+
+In the next code chunk, I create a two-panel plot showing the average max temperature in January and in July in each station across years. 
+
+```{r noaa_plot1}
+ggplot(ny_noaa, aes(x = id, y = tmax)) + geom_boxplot()
 ```
 
