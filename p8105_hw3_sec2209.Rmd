@@ -21,23 +21,38 @@ data("instacart")
 
 ```
 
-Next, I create a table that displays the three most population items in each of the aisles of "baking ingredients", "dog food care", and "packaged vegetables fruits". The table displays the number of times each item was ordered.
+Next, I create a table that displays the three most popular items in each of the aisles of "baking ingredients", "dog food care", and "packaged vegetables fruits". The table displays the number of times each item was ordered.
 
 ```{r insta_t1}
-
+  instacart %>%
+    filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+    group_by(aisle, product_name) %>%
+    summarize(orders = n()) %>%
+    arrange(aisle, desc(orders)) %>%
+    top_n(n = 3) %>%
+    knitr::kable()
 ```
-In the final portion of problem 1, I create a table that shows the mean hour of the day at which Pink Lady apples and coffee ice cream are ordered on each day of the week.
-```{r insta_t2}
 
+In the final portion of problem 1, I create a table that shows the mean hour of the day at which Pink Lady apples and coffee ice cream are ordered on each day of the week.
+
+```{r insta_t2}
+instacart %>%
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>%
+  summarize(mean_hour = mean(order_hour_of_day)) %>%
+  arrange(product_name, order_dow) %>%
+  pivot_wider(
+    names_from = product_name,
+    values_from = mean_hour
+    ) %>%
+  knitr::kable(digits = 1)
 ```
 
 The Instacart data contain de-identified grocery orders for users of this online grocery service, which partners with local stores like Whole Foods and Fairway to deliver groceries within 2 hours of order. Each row in the data set represents a product that has been ordered. The data include variables about the order (such as date and time), the customer, and about the products ordered (such as product name and department/aisle where the product can be found). 
 
-There are a total of  `r ` orders, `r ` customers, and `r ` products represented in these data. On average, customers have placed `r ` orders and each order contains `r ` products. 
+The resulting data set contains `r nrow(instacart)` rows  and `r ncol(instacart)` columns. There are a total of `r summarize(instacart, n_distinct(order_id))` orders, `r summarize(instacart, n_distinct(user_id))` customers, and `r summarize(instacart, n_distinct(product_id))` products represented in these data. On average, customers have placed `r instacart %>% group_by(user_id) %>% summarize(orders = n_distinct(order_id)) %>% summarize(mean(orders)) %>% round()` orders and each order contains `r instacart %>% group_by(order_id) %>% summarize(products = n()) %>% summarize(mean(products)) %>% round()` products. 
 
-There are `r ` aisles represented in the data. Most items that are ordered come from the `r ` aisle, with `r ` items ordered. The most popular item from the baking ingredients aisle was `r `, the most population item from the dog food care aisle was `r `, and the most population item from the packaged vegetables fruits aisle was `r `.
-
-
+There are `r summarize(instacart, n_distinct(aisle_id))` aisles represented in the data. Most items that are ordered come from the `r instacart %>% group_by(aisle) %>% summarize(items = n()) %>% arrange(desc(items)) %>% top_n(n = 1) %>% pull(aisle)` aisle, with `r instacart %>% group_by(aisle) %>% summarize(items = n()) %>% arrange(desc(items)) %>% top_n(n = 1) %>% pull(items)` items ordered. The most popular item from the baking ingredients aisle was `r instacart %>% filter(aisle == "baking ingredients") %>% group_by(product_name) %>% summarize(items = n()) %>% arrange(desc(items)) %>% top_n(n = 1) %>% pull(product_name)`, the most population item from the dog food & care aisle was `r instacart %>% filter(aisle == "dog food care") %>% group_by(product_name) %>% summarize(items = n()) %>% arrange(desc(items)) %>% top_n(n = 1) %>% pull(product_name)`, and the most population item from the packaged vegetables & fruits aisle was `r instacart %>% filter(aisle == "packaged vegetables fruits") %>% group_by(product_name) %>% summarize(items = n()) %>% arrange(desc(items)) %>% top_n(n = 1) %>% pull(product_name)`. Coffee ice cream tended to be ordered later in the day than pink lady apples.
 
  
 ## Problem 2
@@ -59,7 +74,7 @@ accel =
   mutate(weekend = ifelse(day_id %in% c(3, 4), "Weekend", "Weekday"))
 ```
 
-The resulting data set contains `r nrow(accel)` rows and `r ncol(accel)` variables. This data set contains indicator variables for the week number (`week`) and day of the week (`day`), a variable `activity_count` that represents incremental one-minute measurement interval of the accelerometer, a variable that represents the accelerometer reading (`active`)  and the `weekend` indicator that defines whether it was a weekend or weekday.
+These data represent five weeks of accelerometer data collected on a 63 year-old Advanced Cardiac Care Center of Columbia University Medical Center patient who has been diagnosed with the chronic conditions of congestive heart failure and obesity. The resulting data set contains `r nrow(accel)` rows and `r ncol(accel)` variables. This data set contains indicator variables for the week number (`week`) and day of the week (`day`), a variable `activity_count` that represents incremental one-minute measurement interval of the accelerometer, a variable that represents the accelerometer reading (`active`)  and the `weekend` indicator that defines whether it was a weekend or weekday.
 
 In the next code chunk, I aggregate the activity totals for each day and display the data in a table.
 
@@ -68,8 +83,32 @@ In the next code chunk, I aggregate the activity totals for each day and display
 accel %>%
   group_by(week, day) %>%
   summarize(
-    total_Active = sum(active)) %>% 
+    total_active = sum(active, na.rm = TRUE)) %>% 
+  pivot_wider(
+    names_from = week,
+    values_from = total_active,
+    names_prefix = "Week "
+  ) %>%
   knitr::kable(digits = 1)
 ```
 
 From this table, there appears to be a bit of a decline in activity on the weekends.
+
+In the next code chunk, I create a single-panel plot that displays the 24-hour activity trends for each day, color-coded by day of the week.
+
+```{r accel_24}
+ggplot(accel, aes(x = activity_count, y = active)) + 
+  geom_point(aes(color = day), alpha = .5) +
+  geom_smooth(se = FALSE)
+```
+
+
+
+## Problem 3
+
+In this final problem, I explore the Instacart data. I create a plot of the number of items ordered in each aisle, limiting to aisles with more than 10,000 items ordered. 
+
+```{r noaa}
+data("ny_noaa")
+```
+
