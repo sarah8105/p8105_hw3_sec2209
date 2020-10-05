@@ -158,30 +158,37 @@ noaa = ny_noaa %>%
          tmax = as.integer(tmax) / 10,
          tmin = as.integer(tmin) / 10,
          ) %>%
-  left_join(month_df, by = "month")
+  left_join(month_df, by = "month") %>%
+  select(-month) %>%
+  rename(month = month_name) %>%
+  mutate(month = forcats::fct_relevel(month, c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November")))
 ```
 
 The National Oceanic and Atmospheric Association (NOAA) National Climatic Data Center data contain summary statistics from weather stations across the country. This subset of the NOAA data contain daily summary statistics on precipitation amount (`prcp`), snowfall amount (`snow`), snow depth (`snwd`), and minimum and maximum temperature (`tmax` and `tmin`) from the New York state weather stations from 1981-2010. 
 
-The resulting data set contains `r nrow(ny_noaa)` rows  and `r ncol(ny_noaa)` columns. There is substantial missing data, with `r ny_noaa %>% summarize(mean(is.na(tmax))) * 100 %>% round(1)`% of observations missing maximum temperature, `r ny_noaa %>% summarize(mean(is.na(tmin))) * 100 %>% round(1)`% of observations missing minimum temperature, `r ny_noaa %>% summarize(mean(is.na(snow))) * 100 %>% round(1)`% of observations missing snow amount, and `r ny_noaa %>% summarize(mean(is.na(snwd))) * 100 %>% round(1)`% of observations missing snow depth. Since it rarely snows in New York outside of winter months, the most common observed snowfall values is`r summarize(ny_noaa, mode(snwd))` orders,
+The resulting data set contains `r nrow(ny_noaa)` rows  and `r ncol(ny_noaa)` columns. There is substantial missing data, with `r ny_noaa %>% summarize(mean(is.na(tmax))) %>% round(2) * 100`% of observations missing maximum temperature, `r ny_noaa %>% summarize(mean(is.na(tmin))) %>% round(2) * 100`% of observations missing minimum temperature, `r ny_noaa %>% summarize(mean(is.na(snow))) %>% round(2) * 100`% of observations missing snow amount, and `r ny_noaa %>% summarize(mean(is.na(snwd))) %>% round(2) * 100 `% of observations missing snow depth. Since it rarely snows in New York outside of winter months, the most common observed snowfall values is`r summarize(ny_noaa, mode(snwd))` mm.
 
 In the next code chunk, I create a two-panel plot showing the average max temperature in January and in July in each station across years. 
 
 ```{r noaa_plot1}
 noaa %>%
-  select(id, month_name, tmax) %>%
-  filter(month_name %in% c("January", "July")) %>%
-  group_by(id, month_name) %>%
+  select(id, month, tmax) %>%
+  filter(month %in% c("January", "July")) %>%
+  group_by(id, month) %>%
   summarize(mean_tmax = mean(tmax, na.rm = TRUE)) %>%
   drop_na(mean_tmax) %>% 
-  ggplot(aes(x = mean_tmax, color = month_name)) + 
-    geom_histogram(aes(fill = month_name), alpha = .5) +
-    facet_grid(month_name ~ .) +
-    labs(
-      title = "Distribution in the Average Maximum Temperature at the NY NOAA Stations across 1981-2010",
-      x = "Average Maximum Temperature",
-      y = "Density (%)"
-    )
+  ggplot(aes(x = mean_tmax, color = month)) + 
+  geom_histogram(aes(fill = month), alpha = .6) +
+  facet_grid(month ~ .) +
+  scale_x_continuous(
+    breaks = c(-30, -15, 0, 15, 30),
+    labels = c("-30 C", "-15 C", "0 C", "15 C", "30 C"),
+  ) +
+  labs(
+    title = "Distribution in the Average Maximum Temperature at the NY NOAA Stations across 1981-2010",
+    x = "Average Maximum Temperature (Degrees Celsius)",
+    y = "Density (Number of Stations)"
+  )
 ```
 
 From this graph, we can see that average maximum temperatures in July are much higher than temperatures in January, as expected. There is also a wider range and more outliers in the January temperatures across NY NOAA stations than in the July temperatures. 
@@ -198,12 +205,16 @@ plot_temp = noaa %>%
   ) %>%
   drop_na(temp) %>%
   ggplot(aes(x = temp, fill = observation)) + 
-    geom_density(alpha = .5) +
-    labs(
-      title = "Density Plots of Minimum and Maximum Temperatures",
-      x = "Temperature (Degrees Celsius)",
-      y = "Density",
-      color = "Observation"
+  geom_density(alpha = .5) +
+  scale_x_continuous(
+    breaks = c(-60, -30, 0, 30, 60),
+    labels = c("-60 C", "-30 C", "0 C", "30 C", "60 C"),
+  ) +
+  labs(
+     title = "Density Plots of Minimum and Maximum Temperatures",
+    x = "Temperature (Degrees Celsius)",
+     y = "Density",
+    color = "Observation"
     )
 
 plot_snow = noaa %>%
@@ -211,7 +222,7 @@ plot_snow = noaa %>%
   mutate(year = as.factor(year)) %>%
   drop_na(snow) %>%
   ggplot(aes(x = year, y = snow)) + 
-    geom_violin(color = "blue") +
+  geom_violin(color = "blue") +
   stat_summary() +
   scale_x_discrete(
       breaks = c(1981, 1990, 2000, 2010)
