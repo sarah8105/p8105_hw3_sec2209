@@ -33,9 +33,20 @@ scale_fill_discrete = scale_fill_viridis_d
 
 In this first problem, I explore the Instacart data. I create a plot of the number of items ordered in each aisle, limiting to aisles with more than 10,000 items ordered. 
 
-```{r insta}
+```{r insta_p1}
 data("instacart")
 
+instacart %>%
+  count(aisle) %>%
+  filter(n > 10000) %>%
+  mutate(
+    aisle = factor(aisle),
+    aisle = fct_reorder(aisle, n)
+  ) %>%
+  ggplot(aes(x = aisle, y = n)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  
 ```
 
 Next, I create a table that displays the three most popular items in each of the aisles of "baking ingredients", "dog food care", and "packaged vegetables fruits". The table displays the number of times each item was ordered.
@@ -43,10 +54,11 @@ Next, I create a table that displays the three most popular items in each of the
 ```{r insta_t1}
 instacart %>%
   filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
-  group_by(aisle, product_name) %>%
-  summarize(orders = n()) %>%
-  arrange(aisle, desc(orders)) %>%
-  top_n(n = 3) %>%
+  group_by(aisle) %>%
+  count(product_name) %>%
+  mutate(rank = min_rank(desc(n))) %>%
+  filter(rank < 4) %>%
+  arrange(aisle, rank) %>%
   knitr::kable()
 ```
 
@@ -59,7 +71,7 @@ instacart %>%
   summarize(mean_hour = mean(order_hour_of_day)) %>%
   arrange(product_name, order_dow) %>%
   pivot_wider(
-    names_from = product_name,
+    names_from = order_dow,
     values_from = mean_hour
     ) %>%
   knitr::kable(digits = 1)
@@ -131,13 +143,26 @@ accel %>%
     y = "Accelerometer Activity Count",
     fill = "Day of Week"
   )
+
+accel %>%
+  ggplot(aes(x = activity_count, y = active, color = day, group = day_id)) + 
+  geom_line(alpha = .5) +
+  scale_x_continuous(
+    breaks = c(0, 360, 720, 1080, 1440),
+    labels = c("12 AM", "6 AM", "12 PM", "6 PM", "11:59 PM"),
+  ) +
+  labs(
+    title = "Patterns in 24 Hour Activity Time Courses",
+    x = "Hour of Day",
+    y = "Accelerometer Activity Count"
+  )
 ```
 
 Based on this graph, this patient begins increasing their activity level around 6 AM. In general, this patient's activity level remains relatively steady throughout the day, with some noticeable exceptions. For example, on Sundays there is an increase in activity around 12 PM. During weekdays and Saturdays, there is an increase in activity around 8-9 PM.
 
 ## Problem 3
 
-In this final problem, I explore and clean the NY NOAA data. First, I separate year, month, and day. I then change the units for temperature from tenths of degrees C to degrees C and precipitation from tenths of mm to mm.
+In this final problem, I explore and clean the NY NOAA data. First, I separate year, month, and day. I then change the units for temperature from tenths of degrees C to degrees C and precipitation from tenths of mm to mm. I then count the instance of the different values of snowfall to determine the most common snowfall amount.
 
 ```{r noaa}
 data("ny_noaa")
@@ -162,6 +187,10 @@ noaa = ny_noaa %>%
   select(-month) %>%
   rename(month = month_name) %>%
   mutate(month = forcats::fct_relevel(month, c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November")))
+
+noaa %>%
+  count(snow) %>%
+  arrange(desc(n))
 ```
 
 The National Oceanic and Atmospheric Association (NOAA) National Climatic Data Center data contain summary statistics from weather stations across the country. This subset of the NOAA data contain daily summary statistics on precipitation amount (`prcp`), snowfall amount (`snow`), snow depth (`snwd`), and minimum and maximum temperature (`tmax` and `tmin`) from the New York state weather stations from 1981-2010. 
@@ -188,6 +217,21 @@ noaa %>%
     title = "Distribution in the Average Maximum Temperature at the NY NOAA Stations across 1981-2010",
     x = "Average Maximum Temperature (Degrees Celsius)",
     y = "Density (Number of Stations)"
+  )
+
+noaa %>%
+  select(id, month, year, tmax) %>%
+  filter(month %in% c("January", "July")) %>%
+  group_by(id, month, year) %>%
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE)) %>%
+  drop_na(mean_tmax) %>% 
+  ggplot(aes(x = year, y = mean_tmax, group = id, color = month)) + 
+  geom_line(alpha = .6) +
+  facet_grid(. ~ month) +
+  labs(
+    title = "Distribution in the Average Maximum Temperature at the NY NOAA Stations across 1981-2010",
+    x = "Year",
+    y = "Average Maximum Temperature (Degrees Celsius)"
   )
 ```
 
@@ -235,6 +279,44 @@ plot_snow = noaa %>%
     )
 
 plot_temp / plot_snow
+
+
+plot_temp2 = noaa %>%
+  select(id, tmax, tmin) %>%
+  ggplot(aes(x = tmax, y = tmin)) + 
+  geom_hex(alpha = .5) +
+  scale_x_continuous(
+    breaks = c(-60, -30, 0, 30, 60),
+    labels = c("-60 C", "-30 C", "0 C", "30 C", "60 C"),
+  ) +
+  scale_y_continuous(
+    breaks = c(-60, -30, 0, 30, 60),
+    labels = c("-60 C", "-30 C", "0 C", "30 C", "60 C"),
+  ) +
+  labs(
+     title = "Plot of Minimum and Maximum Temperatures",
+    x = "Maximum Temperature (Degrees Celsius)",
+     y = "Minimum Temperature (Degrees Celsius)"
+    )
+
+plot_snow2 = noaa %>%
+  filter(snow > 0, snow < 100) %>%
+  mutate(year = as.factor(year)) %>%
+  drop_na(snow) %>%
+  ggplot(aes(x = year, y = snow)) + 
+  geom_violin(color = "blue") +
+  stat_summary() +
+  scale_x_discrete(
+      breaks = c(1981, 1990, 2000, 2010)
+      ) +
+    labs(
+      title = "Distribution of Snowfall by Year",
+      x = "Year",
+      y = "Snowfall",
+      caption = "Including snowfall greater than 0 and less than 100mm. Mean snowfall displayed in black."
+    )
+
+plot_temp2 / plot_snow2
 ```
 
 From this graph, we can see that the distribution in minimum and maximum temperatures are offset by approximately 10-15 degrees Celsius. The distribution in snowfall after removing days with 0 mm or greater than 100 mm of snow is relatively consistent across the years, with an average around 30 mm and a right-skewed distribution or long tail towards upper snowfall amounts.
