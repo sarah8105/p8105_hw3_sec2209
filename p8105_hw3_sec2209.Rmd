@@ -100,10 +100,13 @@ accel =
     values_to = "active",
     names_prefix = "activity_"
   ) %>%
-  mutate(weekend = as.factor(ifelse(day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")),
-         day = as.factor(day),
-         day = forcats::fct_relevel(day, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")),
-         activity_count = as.numeric(activity_count))
+  mutate(
+    weekend = as.factor(ifelse(day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")),
+    day = as.factor(day),
+    day = forcats::fct_relevel(day, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")),
+    activity_count = as.numeric(activity_count),
+    day_id = as.factor(day_id)
+    )
 ```
 
 These data represent five weeks of accelerometer data collected on a 63 year-old Advanced Cardiac Care Center of Columbia University Medical Center patient who has been diagnosed with the chronic conditions of congestive heart failure and obesity. The resulting data set contains `r nrow(accel)` rows and `r ncol(accel)` variables. This data set contains indicator variables for the week number (`week`) and day of the week (`day`), a variable (`activity_count`) that represents incremental one-minute measurement intervals of the accelerometer, a variable that represents the accelerometer reading (`active`)  and the `weekend` indicator that defines whether it was a weekend or weekday.
@@ -145,8 +148,10 @@ accel %>%
   )
 
 accel %>%
-  ggplot(aes(x = activity_count, y = active, color = day, group = day_id)) + 
-  geom_line(alpha = .5) +
+  group_by(day_id) %>%
+  ggplot(aes(x = activity_count, y = active, color = day)) + 
+  geom_line(color = "black", alpha = .2) +
+  stat_smooth() +
   scale_x_continuous(
     breaks = c(0, 360, 720, 1080, 1440),
     labels = c("12 AM", "6 AM", "12 PM", "6 PM", "11:59 PM"),
@@ -154,11 +159,12 @@ accel %>%
   labs(
     title = "Patterns in 24 Hour Activity Time Courses",
     x = "Hour of Day",
-    y = "Accelerometer Activity Count"
+    y = "Accelerometer Activity Count",
+    color = "Day of Week"
   )
 ```
 
-Based on this graph, this patient begins increasing their activity level around 6 AM. In general, this patient's activity level remains relatively steady throughout the day, with some noticeable exceptions. For example, on Sundays there is an increase in activity around 12 PM. During weekdays and Saturdays, there is an increase in activity around 8-9 PM.
+Based on this graph, this patient begins increasing their activity level around 6 AM. The patient has some moments of high activity, particularly in the evening. On average, activity level does not differ by day of week, with some minor exceptions. For example, on Sundays there is an increase in activity around 11 AM - 12 PM. During Fridays, there is an increase in activity around 8-9 PM.
 
 ## Problem 3
 
@@ -190,7 +196,8 @@ noaa = ny_noaa %>%
 
 noaa %>%
   count(snow) %>%
-  arrange(desc(n))
+  arrange(desc(n)) %>%
+  top_n(1)
 ```
 
 The National Oceanic and Atmospheric Association (NOAA) National Climatic Data Center data contain summary statistics from weather stations across the country. This subset of the NOAA data contain daily summary statistics on precipitation amount (`prcp`), snowfall amount (`snow`), snow depth (`snwd`), and minimum and maximum temperature (`tmax` and `tmin`) from the New York state weather stations from 1981-2010. 
@@ -226,16 +233,17 @@ noaa %>%
   summarize(mean_tmax = mean(tmax, na.rm = TRUE)) %>%
   drop_na(mean_tmax) %>% 
   ggplot(aes(x = year, y = mean_tmax, group = id, color = month)) + 
-  geom_line(alpha = .6) +
+  geom_line(alpha = .5) +
   facet_grid(. ~ month) +
   labs(
     title = "Distribution in the Average Maximum Temperature at the NY NOAA Stations across 1981-2010",
     x = "Year",
-    y = "Average Maximum Temperature (Degrees Celsius)"
+    y = "Average Maximum Temperature (Degrees Celsius)",
+    color = "Month"
   )
 ```
 
-From this graph, we can see that average maximum temperatures in July are much higher than temperatures in January, as expected. There is also a wider range and more outliers in the January temperatures across NY NOAA stations than in the July temperatures. 
+From this graph, we can see that average maximum temperatures in July are much higher than temperatures in January, as expected. There is also a wider range in the January temperatures across NY NOAA stations than in the July temperatures. There are a few noticeable outliers, with one station having a temperature below 15 degrees Celsius in July and another station having a temperaure below -5 degrees Celsius in January.
 
 In this next code chunk, I create a two-panel plot showing `tmax` and `tmin` for the full data set and showing the distribution of snowfall values great than 0 and less than 100 separately by year.
 
@@ -297,7 +305,8 @@ plot_temp2 = noaa %>%
      title = "Plot of Minimum and Maximum Temperatures",
     x = "Maximum Temperature (Degrees Celsius)",
      y = "Minimum Temperature (Degrees Celsius)"
-    )
+    ) +
+  theme(legend.position = "right")
 
 plot_snow2 = noaa %>%
   filter(snow > 0, snow < 100) %>%
